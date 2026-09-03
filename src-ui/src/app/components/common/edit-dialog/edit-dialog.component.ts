@@ -113,10 +113,16 @@ export abstract class EditDialogComponent<
       this.changeDetector.markForCheck()
     })
 
-    this.userService.listAll().subscribe((r) => {
-      this.users = r.results
-      this.changeDetector.markForCheck()
-    })
+    if (this.shouldLoadUsers()) {
+      this.userService.listAll().subscribe((r) => {
+        this.users = r.results
+        this.changeDetector.markForCheck()
+      })
+    }
+  }
+
+  protected shouldLoadUsers(): boolean {
+    return true
   }
 
   getCreateTitle() {

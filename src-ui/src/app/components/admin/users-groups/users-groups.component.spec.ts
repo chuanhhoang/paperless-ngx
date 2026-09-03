@@ -71,7 +71,7 @@ describe('UsersAndGroupsComponent', () => {
 
   function completeSetup(excludeService = null) {
     if (excludeService !== userService) {
-      jest.spyOn(userService, 'listAll').mockReturnValue(
+      jest.spyOn(userService, 'list').mockReturnValue(
         of({
           all: users.map((a) => a.id),
           count: users.length,
@@ -121,7 +121,7 @@ describe('UsersAndGroupsComponent', () => {
     const deleteSpy = jest.spyOn(userService, 'delete')
     const toastErrorSpy = jest.spyOn(toastService, 'showError')
     const toastInfoSpy = jest.spyOn(toastService, 'showInfo')
-    const listAllSpy = jest.spyOn(userService, 'listAll')
+    const listSpy = jest.spyOn(userService, 'list')
     deleteSpy.mockReturnValueOnce(
       throwError(() => new Error('error deleting user'))
     )
@@ -129,7 +129,7 @@ describe('UsersAndGroupsComponent', () => {
     expect(toastErrorSpy).toHaveBeenCalled()
     deleteSpy.mockReturnValueOnce(of(true))
     deleteDialog.confirm()
-    expect(listAllSpy).toHaveBeenCalled()
+    expect(listSpy).toHaveBeenCalled()
     expect(toastInfoSpy).toHaveBeenCalledWith('Deleted user "user1"')
   })
 
@@ -201,13 +201,37 @@ describe('UsersAndGroupsComponent', () => {
   it('should show errors on load if load users failure', () => {
     const toastErrorSpy = jest.spyOn(toastService, 'showError')
     jest
-      .spyOn(userService, 'listAll')
+      .spyOn(userService, 'list')
       .mockImplementation(() =>
         throwError(() => new Error('failed to load users'))
       )
     completeSetup(userService)
     fixture.detectChanges()
     expect(toastErrorSpy).toHaveBeenCalled()
+  })
+
+  it('should load and paginate users on the server', () => {
+    completeSetup()
+    const listSpy = jest.spyOn(userService, 'list')
+
+    expect(listSpy).toHaveBeenCalledWith(1, 25, 'username', false, {
+      full_perms: true,
+    })
+
+    component.userPage.set(2)
+    component.loadUsers()
+
+    expect(listSpy).toHaveBeenLastCalledWith(2, 25, 'username', false, {
+      full_perms: true,
+    })
+  })
+
+  it('should show pagination controls when there is more than one page', () => {
+    completeSetup()
+    component.userCount.set(26)
+    fixture.detectChanges()
+
+    expect(fixture.nativeElement.querySelector('ngb-pagination')).not.toBeNull()
   })
 
   it('should show errors on load if load groups failure', () => {

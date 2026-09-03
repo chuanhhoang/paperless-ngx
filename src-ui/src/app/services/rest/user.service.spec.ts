@@ -173,16 +173,14 @@ describe('Additional service tests for UserService', () => {
   })
 
   it('should retain permissions on update', () => {
-    subscription = service.listAll().subscribe()
+    subscription = service.update(user).subscribe()
     let req = httpTestingController.expectOne(
-      `${environment.apiBaseUrl}${endpoint}/?page=1&page_size=100000`
+      `${environment.apiBaseUrl}${endpoint}/${user.id}/`
     )
     req.flush({
-      results: [user],
+      ...user,
     })
-    subscription.unsubscribe()
 
-    subscription = service.update(user).subscribe()
     req = httpTestingController.expectOne(
       `${environment.apiBaseUrl}${endpoint}/${user.id}/`
     )

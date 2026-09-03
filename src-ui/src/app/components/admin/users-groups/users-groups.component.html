@@ -43,6 +43,19 @@
       </li>
     }
   </ul>
+  @if (userCount() > userPageSize) {
+    <ngb-pagination
+      class="d-flex justify-content-end mt-3"
+      [pageSize]="userPageSize"
+      [collectionSize]="userCount()"
+      [page]="userPage()"
+      [maxSize]="5"
+      [boundaryLinks]="true"
+      (pageChange)="userPage.set($event); loadUsers()"
+      size="sm"
+      aria-label="Users pagination"
+    ></ngb-pagination>
+  }
 }
 
 @if (canViewGroups && groups()) {

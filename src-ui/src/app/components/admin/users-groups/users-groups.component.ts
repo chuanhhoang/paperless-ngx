@@ -1,5 +1,5 @@
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core'
-import { NgbModal } from '@ng-bootstrap/ng-bootstrap'
+import { NgbModal, NgbPaginationModule } from '@ng-bootstrap/ng-bootstrap'
 import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
 import { Subject, first, takeUntil } from 'rxjs'
 import { Group } from 'src/app/data/group'
@@ -29,6 +29,7 @@ import { ComponentWithPermissions } from '../../with-permissions/with-permission
   imports: [
     PageHeaderComponent,
     IfPermissionsDirective,
+    NgbPaginationModule,
     NgxBootstrapIconsModule,
   ],
 })
@@ -44,6 +45,9 @@ export class UsersAndGroupsComponent
   private settings = inject(SettingsService)
 
   readonly users = signal<User[]>(null)
+  readonly userCount = signal(0)
+  readonly userPage = signal(1)
+  readonly userPageSize = 25
   readonly groups = signal<Group[]>(null)
 
   unsubscribeNotifier: Subject<any> = new Subject()
@@ -64,17 +68,7 @@ export class UsersAndGroupsComponent
 
   ngOnInit(): void {
     if (this.canViewUsers) {
-      this.usersService
-        .listAll(null, null, { full_perms: true })
-        .pipe(first(), takeUntil(this.unsubscribeNotifier))
-        .subscribe({
-          next: (r) => {
-            this.users.set(r.results)
-          },
-          error: (e) => {
-            this.toastService.showError($localize`Error retrieving users`, e)
-          },
-        })
+      this.loadUsers()
     }
 
     if (this.canViewGroups) {
@@ -94,6 +88,23 @@ export class UsersAndGroupsComponent
 
   ngOnDestroy() {
     this.unsubscribeNotifier.next(true)
+  }
+
+  loadUsers() {
+    this.usersService
+      .list(this.userPage(), this.userPageSize, 'username', false, {
+        full_perms: true,
+      })
+      .pipe(first(), takeUntil(this.unsubscribeNotifier))
+      .subscribe({
+        next: (r) => {
+          this.users.set(r.results)
+          this.userCount.set(r.count)
+        },
+        error: (e) => {
+          this.toastService.showError($localize`Error retrieving users`, e)
+        },
+      })
   }
 
   editUser(user: User = null) {
@@ -124,9 +135,7 @@ export class UsersAndGroupsComponent
           this.toastService.showInfo(
             $localize`Saved user "${newUser.username}".`
           )
-          this.usersService.listAll().subscribe((r) => {
-            this.users.set(r.results)
-          })
+          this.loadUsers()
         }
       })
     modal.componentInstance.failed
@@ -151,9 +160,10 @@ export class UsersAndGroupsComponent
         next: () => {
           modal.close()
           this.toastService.showInfo($localize`Deleted user "${user.username}"`)
-          this.usersService.listAll().subscribe((r) => {
-            this.users.set(r.results)
-          })
+          if (this.users().length === 1 && this.userPage() > 1) {
+            this.userPage.update((page) => page - 1)
+          }
+          this.loadUsers()
         },
         error: (e) => {
           this.toastService.showError(

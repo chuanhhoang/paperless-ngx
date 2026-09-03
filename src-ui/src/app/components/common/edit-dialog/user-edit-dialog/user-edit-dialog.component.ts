@@ -64,6 +64,10 @@ export class UserEditDialogComponent
     }
   }
 
+  protected override shouldLoadUsers(): boolean {
+    return false
+  }
+
   getCreateTitle() {
     return $localize`Create new user account`
   }

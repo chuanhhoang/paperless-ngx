@@ -77,9 +77,14 @@ export const commonAbstractPaperlessServiceTests = (endpoint, ServiceClass) => {
       subscription.unsubscribe()
 
       subscription = service.update(o).subscribe()
-      req = httpTestingController.expectOne(
-        `${environment.apiBaseUrl}${endpoint}/${id}/`
-      )
+      const updateUrl = `${environment.apiBaseUrl}${endpoint}/${id}/`
+      const initialRequests = httpTestingController.match(updateUrl)
+      expect(initialRequests).toHaveLength(1)
+      req = initialRequests[0]
+      if (req.request.method === 'GET') {
+        req.flush(o)
+        req = httpTestingController.expectOne(updateUrl)
+      }
       expect(req.request.method).toEqual('PUT')
       req.flush([])
     })
