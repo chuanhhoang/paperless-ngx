@@ -736,6 +736,12 @@ This is for use with self-signed certificates against local IMAP servers.
 
 : A list of group names that users will be added to when they sign up for a new account. Groups listed here must already exist.
 
+The built-in `Uploader` group can upload and view owner-visible documents, see
+its own upload tasks, and create, view, or revoke public links for documents it
+owns. It does not grant staff, superuser, document editing, or access to
+documents owned by another user. Paperless's existing owner rules also expose
+legacy objects that have no owner.
+
     Defaults to None
 
 #### [`PAPERLESS_ACCOUNT_EMAIL_REQUIRED=<bool>`](#PAPERLESS_ACCOUNT_EMAIL_REQUIRED) {#PAPERLESS_ACCOUNT_EMAIL_REQUIRED}

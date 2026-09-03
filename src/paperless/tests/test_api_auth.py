@@ -127,6 +127,7 @@ class TestApiAuthViews(TestCase):
 
     @override_settings(
         ACCOUNT_ALLOW_SIGNUPS=True,
+        ACCOUNT_DEFAULT_GROUPS=["Uploader"],
         HCAPTCHA_ENABLED=True,
         HCAPTCHA_SITE_KEY="test-site-key",
         ACCOUNT_EMAIL_VERIFICATION="none",
@@ -148,6 +149,9 @@ class TestApiAuthViews(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_302_FOUND)
         self.assertTrue(User.objects.filter(username=username).exists())
+        self.assertTrue(
+            User.objects.get(username=username).groups.filter(name="Uploader").exists(),
+        )
         verify_mock.assert_called_once()
 
     @override_settings(DISABLE_REGULAR_LOGIN=True)
