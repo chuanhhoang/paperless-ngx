@@ -841,16 +841,16 @@ If both the [PAPERLESS_ACCOUNT_DEFAULT_GROUPS](#PAPERLESS_ACCOUNT_DEFAULT_GROUPS
 
 #### [`PAPERLESS_HCAPTCHA_ENABLED=<bool>`](#PAPERLESS_HCAPTCHA_ENABLED) {#PAPERLESS_HCAPTCHA_ENABLED}
 
-: Require an hCaptcha challenge for interactive username and password login.
-The API token endpoint, HTTP Basic authentication, and social authentication are
-not affected. Both `PAPERLESS_HCAPTCHA_SITE_KEY` and
+: Require an hCaptcha challenge for interactive username/password login and
+registration. The API token endpoint, HTTP Basic authentication, and social
+authentication are not affected. Both `PAPERLESS_HCAPTCHA_SITE_KEY` and
 `PAPERLESS_HCAPTCHA_SECRET_KEY` are required when this is enabled.
 
     Defaults to False
 
 #### [`PAPERLESS_HCAPTCHA_SITE_KEY=<string>`](#PAPERLESS_HCAPTCHA_SITE_KEY) {#PAPERLESS_HCAPTCHA_SITE_KEY}
 
-: The public hCaptcha site key rendered on the login page.
+: The public hCaptcha site key rendered on the login and registration pages.
 
     Defaults to an empty string
 
@@ -863,8 +863,9 @@ Do not commit this value or expose it to browsers.
 
 #### [`PAPERLESS_HCAPTCHA_TIMEOUT=<float>`](#PAPERLESS_HCAPTCHA_TIMEOUT) {#PAPERLESS_HCAPTCHA_TIMEOUT}
 
-: Timeout in seconds for server-side hCaptcha verification requests. Login fails
-closed when verification times out or hCaptcha cannot be reached.
+: Timeout in seconds for server-side hCaptcha verification requests. Login and
+registration fail closed when verification times out or hCaptcha cannot be
+reached.
 
     Defaults to 5.0
 

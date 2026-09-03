@@ -52,6 +52,7 @@ from documents.views import WorkflowActionViewSet
 from documents.views import WorkflowTriggerViewSet
 from documents.views import WorkflowViewSet
 from documents.views import serve_logo
+from paperless.account_views import HCaptchaSignupView
 from paperless.consumers import StatusConsumer
 from paperless.views import ApplicationConfigurationViewSet
 from paperless.views import DisconnectSocialAccountView
@@ -342,7 +343,7 @@ urlpatterns = [
                 # login, logout, signup, account_inactive
                 path("login/", allauth_account_views.login, name="account_login"),
                 path("logout/", allauth_account_views.logout, name="account_logout"),
-                path("signup/", allauth_account_views.signup, name="account_signup"),
+                path("signup/", HCaptchaSignupView.as_view(), name="account_signup"),
                 path(
                     "account_inactive/",
                     allauth_account_views.account_inactive,

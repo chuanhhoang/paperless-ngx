@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -31,6 +32,92 @@ class TestApiAuthViews(TestCase):
         self.assertContains(response, "https://js.hcaptcha.com/1/api.js")
         self.assertContains(response, 'class="h-captcha')
         self.assertContains(response, 'data-sitekey="test-site-key"')
+
+    @override_settings(
+        ACCOUNT_ALLOW_SIGNUPS=True,
+        HCAPTCHA_ENABLED=True,
+        HCAPTCHA_SITE_KEY="test-site-key",
+    )
+    def test_signup_page_renders_hcaptcha(self):
+        response = self.client.get(reverse("account_signup"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTemplateUsed(response, "account/signup.html")
+        self.assertContains(response, "https://js.hcaptcha.com/1/api.js")
+        self.assertContains(response, 'class="h-captcha')
+        self.assertContains(response, 'data-sitekey="test-site-key"')
+
+    @override_settings(
+        ACCOUNT_ALLOW_SIGNUPS=True,
+        HCAPTCHA_ENABLED=True,
+        HCAPTCHA_SITE_KEY="test-site-key",
+    )
+    def test_signup_requires_hcaptcha(self):
+        username = f"signup-{uuid.uuid4().hex}"
+
+        response = self.client.post(
+            reverse("account_signup"),
+            data={
+                "username": username,
+                "email": "",
+                "password1": "a-secure-test-password-123",
+                "password2": "a-secure-test-password-123",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertContains(response, "Please complete the hCaptcha challenge")
+        self.assertFalse(User.objects.filter(username=username).exists())
+
+    @override_settings(
+        ACCOUNT_ALLOW_SIGNUPS=True,
+        HCAPTCHA_ENABLED=True,
+        HCAPTCHA_SITE_KEY="test-site-key",
+    )
+    @patch("paperless.account_views.verify_hcaptcha", return_value=False)
+    def test_signup_rejects_invalid_hcaptcha(self, verify_mock):
+        username = f"signup-{uuid.uuid4().hex}"
+
+        response = self.client.post(
+            reverse("account_signup"),
+            data={
+                "username": username,
+                "email": "",
+                "password1": "a-secure-test-password-123",
+                "password2": "a-secure-test-password-123",
+                "h-captcha-response": "invalid-token",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertContains(response, "hCaptcha verification failed")
+        self.assertFalse(User.objects.filter(username=username).exists())
+        verify_mock.assert_called_once()
+
+    @override_settings(
+        ACCOUNT_ALLOW_SIGNUPS=True,
+        HCAPTCHA_ENABLED=True,
+        HCAPTCHA_SITE_KEY="test-site-key",
+        ACCOUNT_EMAIL_VERIFICATION="none",
+    )
+    @patch("paperless.account_views.verify_hcaptcha", return_value=True)
+    def test_signup_accepts_valid_hcaptcha(self, verify_mock):
+        username = f"signup-{uuid.uuid4().hex}"
+
+        response = self.client.post(
+            reverse("account_signup"),
+            data={
+                "username": username,
+                "email": "",
+                "password1": "a-secure-test-password-123",
+                "password2": "a-secure-test-password-123",
+                "h-captcha-response": "test-response-token",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertTrue(User.objects.filter(username=username).exists())
+        verify_mock.assert_called_once()
 
     @override_settings(DISABLE_REGULAR_LOGIN=True)
     def test_api_auth_login_respects_disable_regular_login(self):
