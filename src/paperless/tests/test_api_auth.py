@@ -1,3 +1,4 @@
+import base64
 import uuid
 from unittest.mock import patch
 
@@ -46,6 +47,202 @@ class TestApiAuthViews(TestCase):
         self.assertContains(response, "https://js.hcaptcha.com/1/api.js")
         self.assertContains(response, 'class="h-captcha')
         self.assertContains(response, 'data-sitekey="test-site-key"')
+
+    @override_settings(
+        ACCOUNT_ALLOW_SIGNUPS=True,
+        GLOBAL_TOTP_ENABLED=True,
+        GLOBAL_TOTP_SECRET="JBSWY3DPEHPK3PXP",
+        HCAPTCHA_ENABLED=True,
+        HCAPTCHA_SITE_KEY="test-site-key",
+    )
+    def test_browser_signup_keeps_hcaptcha_when_global_totp_is_enabled(self):
+        response = self.client.get(reverse("account_signup"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertContains(response, 'class="h-captcha')
+        self.assertNotContains(response, 'name="otp"')
+
+    @override_settings(
+        ACCOUNT_ALLOW_SIGNUPS=True,
+        GLOBAL_TOTP_ENABLED=True,
+        GLOBAL_TOTP_SECRET="JBSWY3DPEHPK3PXP",
+    )
+    def test_headless_app_signup_requires_global_totp(self):
+        response = self.client.post(
+            "/api/auth/headless/app/v1/auth/signup",
+            data={
+                "username": f"signup-{uuid.uuid4().hex}",
+                "email": "",
+                "password": "a-secure-test-password-123",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @override_settings(
+        ACCOUNT_ALLOW_SIGNUPS=True,
+        ACCOUNT_EMAIL_VERIFICATION="none",
+        GLOBAL_TOTP_ENABLED=True,
+        GLOBAL_TOTP_SECRET="JBSWY3DPEHPK3PXP",
+    )
+    @patch("paperless.account_views.verify_global_totp", return_value=True)
+    def test_headless_app_signup_accepts_global_totp_field(self, verify_mock):
+        username = f"signup-{uuid.uuid4().hex}"
+
+        response = self.client.post(
+            "/api/auth/headless/app/v1/auth/signup",
+            data={
+                "username": username,
+                "email": "",
+                "password": "a-secure-test-password-123",
+                "otp": "123456",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(User.objects.filter(username=username).exists())
+        verify_mock.assert_called_once_with("123456")
+
+    @override_settings(
+        GLOBAL_TOTP_ENABLED=True,
+        GLOBAL_TOTP_SECRET="JBSWY3DPEHPK3PXP",
+    )
+    def test_api_token_authentication_requires_global_totp(self):
+        user = User.objects.create_user(username="app-user", password="password")
+
+        response = self.client.post(
+            "/api/token/",
+            data={"username": user.username, "password": "password"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.json()["non_field_errors"],
+            ["Invalid global one-time password"],
+        )
+
+    @override_settings(
+        GLOBAL_TOTP_ENABLED=True,
+        GLOBAL_TOTP_SECRET="JBSWY3DPEHPK3PXP",
+    )
+    @patch("paperless.serialisers.verify_global_totp", return_value=True)
+    def test_api_token_authentication_accepts_global_totp_header(self, verify_mock):
+        user = User.objects.create_user(username="app-user", password="password")
+
+        response = self.client.post(
+            "/api/token/",
+            data={"username": user.username, "password": "password"},
+            headers={"X-Paperless-OTP": "123456"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("token", response.json())
+        verify_mock.assert_called_once_with("123456")
+
+    @override_settings(
+        GLOBAL_TOTP_ENABLED=True,
+        GLOBAL_TOTP_SECRET="JBSWY3DPEHPK3PXP",
+    )
+    def test_headless_app_login_requires_global_totp(self):
+        user = User.objects.create_user(username="app-user", password="password")
+
+        response = self.client.post(
+            "/api/auth/headless/app/v1/auth/login",
+            data={"username": user.username, "password": "password"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @override_settings(
+        GLOBAL_TOTP_ENABLED=True,
+        GLOBAL_TOTP_SECRET="JBSWY3DPEHPK3PXP",
+    )
+    @patch("paperless.account_views.verify_global_totp", return_value=True)
+    def test_headless_app_login_accepts_global_totp_field(self, verify_mock):
+        user = User.objects.create_user(username="app-user", password="password")
+
+        response = self.client.post(
+            "/api/auth/headless/app/v1/auth/login",
+            data={
+                "username": user.username,
+                "password": "password",
+                "otp": "123456",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.json()["meta"]["is_authenticated"])
+        verify_mock.assert_called_once_with("123456")
+
+    @override_settings(
+        GLOBAL_TOTP_ENABLED=True,
+        GLOBAL_TOTP_SECRET="JBSWY3DPEHPK3PXP",
+    )
+    def test_global_totp_disables_basic_authentication(self):
+        user = User.objects.create_user(username="app-user", password="password")
+        credentials = base64.b64encode(f"{user.username}:password".encode()).decode()
+
+        response = self.client.get(
+            "/api/profile/",
+            headers={"Authorization": f"Basic {credentials}"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(
+            response.json()["detail"],
+            "Basic authentication is disabled when global TOTP is enabled",
+        )
+
+    @override_settings(
+        ACCOUNT_ALLOW_SIGNUPS=True,
+        GLOBAL_TOTP_ENABLED=True,
+        GLOBAL_TOTP_SECRET="JBSWY3DPEHPK3PXP",
+        HCAPTCHA_ENABLED=True,
+        HCAPTCHA_SITE_KEY="test-site-key",
+    )
+    def test_headless_browser_signup_still_requires_hcaptcha(self):
+        response = self.client.post(
+            "/api/auth/headless/browser/v1/auth/signup",
+            data={
+                "username": f"signup-{uuid.uuid4().hex}",
+                "email": "",
+                "password": "a-secure-test-password-123",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @override_settings(
+        ACCOUNT_ALLOW_SIGNUPS=True,
+        ACCOUNT_EMAIL_VERIFICATION="none",
+        GLOBAL_TOTP_ENABLED=True,
+        GLOBAL_TOTP_SECRET="JBSWY3DPEHPK3PXP",
+        HCAPTCHA_ENABLED=True,
+        HCAPTCHA_SITE_KEY="test-site-key",
+    )
+    @patch("paperless.account_views.verify_hcaptcha", return_value=True)
+    def test_headless_browser_signup_accepts_hcaptcha(self, verify_mock):
+        username = f"signup-{uuid.uuid4().hex}"
+
+        response = self.client.post(
+            "/api/auth/headless/browser/v1/auth/signup",
+            data={
+                "username": username,
+                "email": "",
+                "password": "a-secure-test-password-123",
+                "h-captcha-response": "test-response-token",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(User.objects.filter(username=username).exists())
+        verify_mock.assert_called_once()
 
     @override_settings(
         ACCOUNT_ALLOW_SIGNUPS=True,

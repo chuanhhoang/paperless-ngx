@@ -37,8 +37,10 @@ The REST api provides five different forms of authentication.
 
     POST a username and password as a form or json string to
     `/api/token/` and paperless will respond with a token, if the login
-    data is correct. This token can be used to authenticate other
-    requests with the following HTTP header:
+    data is correct. When `PAPERLESS_GLOBAL_TOTP_ENABLED` is enabled, this
+    request must also include the current TOTP as `X-Paperless-OTP` or the
+    `otp` form/JSON field. This token can be used to authenticate subsequent
+    requests without another TOTP using the following HTTP header:
 
     ```
     Authorization: Token <token>
@@ -59,6 +61,11 @@ The REST api provides five different forms of authentication.
     configured. See
     [here](advanced_usage.md#openid-connect-and-social-authentication) for more
     information on social accounts.
+
+    When `PAPERLESS_GLOBAL_TOTP_ENABLED` is enabled, password registration at
+    `/api/auth/headless/app/v1/auth/signup` and password authentication at
+    `/api/auth/headless/app/v1/auth/login` require the current six-digit TOTP.
+    Supply it as `X-Paperless-OTP` or as the JSON field `otp`.
 
 ## Searching for documents
 

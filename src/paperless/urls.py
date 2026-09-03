@@ -1,4 +1,5 @@
 from allauth.account import views as allauth_account_views
+from allauth.headless.constants import Client as HeadlessClient
 from allauth.mfa.base import views as allauth_mfa_views
 from allauth.socialaccount import views as allauth_social_account_views
 from allauth.urls import build_provider_urlpatterns
@@ -52,6 +53,8 @@ from documents.views import WorkflowActionViewSet
 from documents.views import WorkflowTriggerViewSet
 from documents.views import WorkflowViewSet
 from documents.views import serve_logo
+from paperless.account_views import GlobalTotpHeadlessLoginView
+from paperless.account_views import GlobalTotpHeadlessSignupView
 from paperless.account_views import HCaptchaSignupView
 from paperless.consumers import StatusConsumer
 from paperless.views import ApplicationConfigurationViewSet
@@ -286,6 +289,23 @@ urlpatterns = [
                             ),
                         ],
                     ),
+                ),
+                path(
+                    "auth/headless/app/v1/auth/login",
+                    GlobalTotpHeadlessLoginView.as_api_view(client=HeadlessClient.APP),
+                    name="global_totp_headless_app_login",
+                ),
+                path(
+                    "auth/headless/app/v1/auth/signup",
+                    GlobalTotpHeadlessSignupView.as_api_view(client=HeadlessClient.APP),
+                    name="global_totp_headless_app_signup",
+                ),
+                path(
+                    "auth/headless/browser/v1/auth/signup",
+                    GlobalTotpHeadlessSignupView.as_api_view(
+                        client=HeadlessClient.BROWSER,
+                    ),
+                    name="global_totp_headless_browser_signup",
                 ),
                 re_path("^auth/headless/", include("allauth.headless.urls")),
                 re_path(

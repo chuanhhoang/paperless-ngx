@@ -18,6 +18,8 @@ from PIL import Image
 from rest_framework import serializers
 from rest_framework.authtoken.serializers import AuthTokenSerializer
 
+from paperless.global_totp import get_global_totp_code
+from paperless.global_totp import verify_global_totp
 from paperless.models import ApplicationConfiguration
 from paperless.network import validate_outbound_http_url
 from paperless.validators import reject_dangerous_svg
@@ -45,6 +47,11 @@ class PasswordValidationMixin:
 
 
 class PaperlessAuthTokenSerializer(AuthTokenSerializer):
+    otp = serializers.CharField(
+        label="Global one-time password",
+        write_only=True,
+        required=False,
+    )
     code = serializers.CharField(
         label="MFA Code",
         write_only=True,
@@ -52,6 +59,14 @@ class PaperlessAuthTokenSerializer(AuthTokenSerializer):
     )
 
     def validate(self, attrs):
+        if settings.GLOBAL_TOTP_ENABLED:
+            request = self.context["request"]
+            global_code = get_global_totp_code(request, attrs)
+            if not verify_global_totp(global_code):
+                raise serializers.ValidationError(
+                    "Invalid global one-time password",
+                )
+
         attrs = super().validate(attrs)
         user = attrs.get("user")
         code = attrs.get("code")

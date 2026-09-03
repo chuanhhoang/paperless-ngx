@@ -857,8 +857,10 @@ If both the [PAPERLESS_ACCOUNT_DEFAULT_GROUPS](#PAPERLESS_ACCOUNT_DEFAULT_GROUPS
 #### [`PAPERLESS_HCAPTCHA_ENABLED=<bool>`](#PAPERLESS_HCAPTCHA_ENABLED) {#PAPERLESS_HCAPTCHA_ENABLED}
 
 : Require an hCaptcha challenge for interactive username/password login and
-registration. The API token endpoint, HTTP Basic authentication, and social
-authentication are not affected. Both `PAPERLESS_HCAPTCHA_SITE_KEY` and
+registration, including browser-mode headless registration. The global TOTP
+setting affects only programmatic app registration and non-session API uploads.
+The API token endpoint, HTTP Basic authentication, and social authentication are
+not affected. Both `PAPERLESS_HCAPTCHA_SITE_KEY` and
 `PAPERLESS_HCAPTCHA_SECRET_KEY` are required when this is enabled.
 
     Defaults to False
@@ -883,6 +885,35 @@ registration fail closed when verification times out or hCaptcha cannot be
 reached.
 
     Defaults to 5.0
+
+#### [`PAPERLESS_GLOBAL_TOTP_ENABLED=<bool>`](#PAPERLESS_GLOBAL_TOTP_ENABLED) {#PAPERLESS_GLOBAL_TOTP_ENABLED}
+
+: Require the global time-based one-time password for app-mode headless account
+registration and password authentication, and for token acquisition through
+`/api/token/`. After authentication, the issued user token can be used for
+document uploads without sending another TOTP. HTTP Basic authentication is
+disabled while this setting is enabled so it cannot bypass the TOTP exchange.
+Ordinary browser signup, login, sessions, and uploads are unaffected.
+Programmatic clients may send the six-digit code in the `X-Paperless-OTP`
+header, or in an `otp` form/JSON field.
+
+    Defaults to False
+
+#### [`PAPERLESS_GLOBAL_TOTP_SECRET=<string>`](#PAPERLESS_GLOBAL_TOTP_SECRET) {#PAPERLESS_GLOBAL_TOTP_SECRET}
+
+: The Base32-encoded global RFC 6238 secret. It is required when
+`PAPERLESS_GLOBAL_TOTP_ENABLED` is enabled. The implementation uses HMAC-SHA-1,
+six digits, and a 30-second period for compatibility with standard TOTP clients.
+
+    Defaults to an empty string
+
+#### [`PAPERLESS_GLOBAL_TOTP_WINDOW=<int>`](#PAPERLESS_GLOBAL_TOTP_WINDOW) {#PAPERLESS_GLOBAL_TOTP_WINDOW}
+
+: Number of adjacent 30-second time steps accepted on either side of the current
+step. Set this to `0` for the current step only or `1` to tolerate up to 30
+seconds of clock skew.
+
+    Defaults to 1
 
 #### [`PAPERLESS_REDIRECT_LOGIN_TO_SSO=<bool>`](#PAPERLESS_REDIRECT_LOGIN_TO_SSO) {#PAPERLESS_REDIRECT_LOGIN_TO_SSO}
 

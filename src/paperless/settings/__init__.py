@@ -383,6 +383,19 @@ if HCAPTCHA_ENABLED and (not HCAPTCHA_SITE_KEY or not HCAPTCHA_SECRET_KEY):
         "when PAPERLESS_HCAPTCHA_ENABLED is true",
     )
 
+GLOBAL_TOTP_ENABLED: Final[bool] = get_bool_from_env("PAPERLESS_GLOBAL_TOTP_ENABLED")
+GLOBAL_TOTP_SECRET: Final[str] = os.getenv("PAPERLESS_GLOBAL_TOTP_SECRET", "")
+GLOBAL_TOTP_WINDOW: Final[int] = get_int_from_env("PAPERLESS_GLOBAL_TOTP_WINDOW", 1)
+
+if GLOBAL_TOTP_ENABLED and not GLOBAL_TOTP_SECRET:
+    raise ImproperlyConfigured(
+        "PAPERLESS_GLOBAL_TOTP_SECRET is required when "
+        "PAPERLESS_GLOBAL_TOTP_ENABLED is true",
+    )
+
+if GLOBAL_TOTP_WINDOW < 0:
+    raise ImproperlyConfigured("PAPERLESS_GLOBAL_TOTP_WINDOW must be zero or greater")
+
 AUTO_LOGIN_USERNAME = os.getenv("PAPERLESS_AUTO_LOGIN_USERNAME")
 
 ACCOUNT_EMAIL_VERIFICATION = (

@@ -81,6 +81,10 @@ class PaperlessBasicAuthentication(authentication.BasicAuthentication):
     def authenticate(self, request):
         user_tuple = super().authenticate(request)
         user = user_tuple[0] if user_tuple else None
+        if user and settings.GLOBAL_TOTP_ENABLED:
+            raise exceptions.AuthenticationFailed(
+                "Basic authentication is disabled when global TOTP is enabled",
+            )
         mfa_adapter = get_mfa_adapter()
         if user and mfa_adapter.is_mfa_enabled(user):
             raise exceptions.AuthenticationFailed("MFA required")

@@ -25,6 +25,7 @@ from django.test import override_settings
 from django.utils import timezone
 from guardian.shortcuts import assign_perm
 from rest_framework import status
+from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
 from documents.caching import CACHE_50_MINUTES
@@ -1753,6 +1754,26 @@ class TestDocumentApi(DirectoriesMixin, ConsumeTaskMixin, APITestCase):
         self.assertIsNone(overrides.correspondent_id)
         self.assertIsNone(overrides.document_type_id)
         self.assertIsNone(overrides.tag_ids)
+
+    @override_settings(
+        GLOBAL_TOTP_ENABLED=True,
+        GLOBAL_TOTP_SECRET="JBSWY3DPEHPK3PXP",
+    )
+    def test_upload_does_not_require_global_totp_after_authentication(self) -> None:
+        token = Token.objects.create(user=self.user)
+        self.client.force_authenticate(user=None)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        self.consume_file_mock.return_value = celery.result.AsyncResult(
+            id=str(uuid.uuid4()),
+        )
+
+        with (Path(__file__).parent / "samples" / "simple.pdf").open("rb") as f:
+            response = self.client.post(
+                "/api/documents/post_document/",
+                {"document": f},
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_upload_with_path_traversal_filename_is_reduced_to_basename(self) -> None:
         self.consume_file_mock.return_value = celery.result.AsyncResult(
