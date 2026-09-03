@@ -1,4 +1,5 @@
 from importlib import import_module
+from unittest import mock
 
 import pytest
 from django.apps import apps
@@ -11,20 +12,31 @@ from documents.models import Document
 
 
 @pytest.mark.django_db
-def test_create_uploader_group_assigns_minimal_permissions() -> None:
-    migration = import_module("paperless.migrations.0016_create_uploader_group")
+def test_create_uploader_group_assigns_uploader_permissions() -> None:
+    initial_migration = import_module("paperless.migrations.0016_create_uploader_group")
+    expansion_migration = import_module(
+        "paperless.migrations.0017_expand_uploader_group_permissions",
+    )
 
-    migration.create_uploader_group(apps, None)
+    initial_migration.create_uploader_group(apps, None)
+    expansion_migration.expand_uploader_group_permissions(apps, None)
 
     group = Group.objects.get(name="Uploader")
     permissions = set(group.permissions.values_list("codename", flat=True))
-    assert permissions == migration.UPLOADER_PERMISSIONS
+    assert permissions == (
+        initial_migration.UPLOADER_PERMISSIONS
+        | expansion_migration.UPLOADER_ADDITIONAL_PERMISSIONS
+    )
 
 
 @pytest.mark.django_db
 def test_uploader_can_view_and_share_only_owned_documents() -> None:
-    migration = import_module("paperless.migrations.0016_create_uploader_group")
-    migration.create_uploader_group(apps, None)
+    initial_migration = import_module("paperless.migrations.0016_create_uploader_group")
+    expansion_migration = import_module(
+        "paperless.migrations.0017_expand_uploader_group_permissions",
+    )
+    initial_migration.create_uploader_group(apps, None)
+    expansion_migration.expand_uploader_group_permissions(apps, None)
     uploader = User.objects.create_user("uploader")
     uploader.groups.add(Group.objects.get(name="Uploader"))
     other_user = User.objects.create_user("other-user")
@@ -61,3 +73,29 @@ def test_uploader_can_view_and_share_only_owned_documents() -> None:
         format="json",
     )
     assert other_link_response.status_code == status.HTTP_403_FORBIDDEN
+
+    saved_views_response = client.get("/api/saved_views/")
+    assert saved_views_response.status_code == status.HTTP_200_OK
+
+    with mock.patch("documents.views.build_share_link_bundle.apply_async"):
+        own_bundle_response = client.post(
+            "/api/share_link_bundles/",
+            {
+                "document_ids": [owned_document.pk],
+                "file_version": "original",
+                "expiration_days": 7,
+            },
+            format="json",
+        )
+        other_bundle_response = client.post(
+            "/api/share_link_bundles/",
+            {
+                "document_ids": [other_document.pk],
+                "file_version": "original",
+                "expiration_days": 7,
+            },
+            format="json",
+        )
+
+    assert own_bundle_response.status_code == status.HTTP_201_CREATED
+    assert other_bundle_response.status_code == status.HTTP_400_BAD_REQUEST
