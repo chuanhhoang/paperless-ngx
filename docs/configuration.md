@@ -839,6 +839,35 @@ If both the [PAPERLESS_ACCOUNT_DEFAULT_GROUPS](#PAPERLESS_ACCOUNT_DEFAULT_GROUPS
 
     Defaults to False
 
+#### [`PAPERLESS_HCAPTCHA_ENABLED=<bool>`](#PAPERLESS_HCAPTCHA_ENABLED) {#PAPERLESS_HCAPTCHA_ENABLED}
+
+: Require an hCaptcha challenge for interactive username and password login.
+The API token endpoint, HTTP Basic authentication, and social authentication are
+not affected. Both `PAPERLESS_HCAPTCHA_SITE_KEY` and
+`PAPERLESS_HCAPTCHA_SECRET_KEY` are required when this is enabled.
+
+    Defaults to False
+
+#### [`PAPERLESS_HCAPTCHA_SITE_KEY=<string>`](#PAPERLESS_HCAPTCHA_SITE_KEY) {#PAPERLESS_HCAPTCHA_SITE_KEY}
+
+: The public hCaptcha site key rendered on the login page.
+
+    Defaults to an empty string
+
+#### [`PAPERLESS_HCAPTCHA_SECRET_KEY=<string>`](#PAPERLESS_HCAPTCHA_SECRET_KEY) {#PAPERLESS_HCAPTCHA_SECRET_KEY}
+
+: The private hCaptcha secret used only by the server to verify login challenges.
+Do not commit this value or expose it to browsers.
+
+    Defaults to an empty string
+
+#### [`PAPERLESS_HCAPTCHA_TIMEOUT=<float>`](#PAPERLESS_HCAPTCHA_TIMEOUT) {#PAPERLESS_HCAPTCHA_TIMEOUT}
+
+: Timeout in seconds for server-side hCaptcha verification requests. Login fails
+closed when verification times out or hCaptcha cannot be reached.
+
+    Defaults to 5.0
+
 #### [`PAPERLESS_REDIRECT_LOGIN_TO_SSO=<bool>`](#PAPERLESS_REDIRECT_LOGIN_TO_SSO) {#PAPERLESS_REDIRECT_LOGIN_TO_SSO}
 
 : When this setting is enabled users will automatically be redirected (using javascript) to the first SSO provider login. You may still want to disable the frontend login form for clarity.

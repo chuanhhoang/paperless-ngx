@@ -1,5 +1,7 @@
 import logging
+from urllib.parse import parse_qs
 
+import httpx
 import pytest
 from allauth.account.adapter import get_adapter
 from allauth.core import context
@@ -11,6 +13,7 @@ from django.forms import ValidationError
 from django.http import HttpRequest
 from django.urls import reverse
 from pytest_django.fixtures import SettingsWrapper
+from pytest_httpx import HTTPXMock
 from pytest_mock import MockerFixture
 from rest_framework.authtoken.models import Token
 
@@ -69,6 +72,79 @@ class TestCustomAccountAdapter:
         settings.DISABLE_REGULAR_LOGIN = True
         with pytest.raises(ValidationError):
             adapter.pre_authenticate(request)
+
+    def test_pre_authenticate_requires_hcaptcha_token(
+        self,
+        settings: SettingsWrapper,
+        mocker: MockerFixture,
+    ) -> None:
+        mocker.patch("allauth.core.internal.ratelimit.consume", return_value=True)
+        settings.DISABLE_REGULAR_LOGIN = False
+        settings.HCAPTCHA_ENABLED = True
+        request = HttpRequest()
+        request.get_host = lambda: "example.com"
+
+        with pytest.raises(ValidationError, match="complete the hCaptcha"):
+            get_adapter().pre_authenticate(request)
+
+    def test_pre_authenticate_verifies_hcaptcha(
+        self,
+        settings: SettingsWrapper,
+        mocker: MockerFixture,
+        httpx_mock: HTTPXMock,
+    ) -> None:
+        mocker.patch("allauth.core.internal.ratelimit.consume", return_value=True)
+        settings.DISABLE_REGULAR_LOGIN = False
+        settings.HCAPTCHA_ENABLED = True
+        settings.HCAPTCHA_SITE_KEY = "test-site-key"
+        settings.HCAPTCHA_SECRET_KEY = "test-secret-key"
+        settings.HCAPTCHA_TIMEOUT = 5.0
+        request = HttpRequest()
+        request.get_host = lambda: "example.com"
+        request.POST = request.POST.copy()
+        request.POST["h-captcha-response"] = "test-response-token"
+        request.META["REMOTE_ADDR"] = "203.0.113.10"
+        httpx_mock.add_response(json={"success": True})
+
+        get_adapter().pre_authenticate(request)
+
+        verification_request = httpx_mock.get_request()
+        assert verification_request is not None
+        assert verification_request.method == "POST"
+        assert verification_request.url == httpx.URL(
+            "https://api.hcaptcha.com/siteverify",
+        )
+        form = parse_qs(verification_request.content.decode())
+        assert form["secret"] == ["test-secret-key"]
+        assert form["response"] == ["test-response-token"]
+        assert form["sitekey"] == ["test-site-key"]
+        assert form["remoteip"] == ["203.0.113.10"]
+
+    def test_pre_authenticate_rejects_invalid_hcaptcha(
+        self,
+        settings: SettingsWrapper,
+        mocker: MockerFixture,
+        httpx_mock: HTTPXMock,
+    ) -> None:
+        mocker.patch("allauth.core.internal.ratelimit.consume", return_value=True)
+        settings.DISABLE_REGULAR_LOGIN = False
+        settings.HCAPTCHA_ENABLED = True
+        settings.HCAPTCHA_SITE_KEY = "test-site-key"
+        settings.HCAPTCHA_SECRET_KEY = "test-secret-key"
+        settings.HCAPTCHA_TIMEOUT = 5.0
+        request = HttpRequest()
+        request.get_host = lambda: "example.com"
+        request.POST = request.POST.copy()
+        request.POST["h-captcha-response"] = "invalid-token"
+        httpx_mock.add_response(
+            json={
+                "success": False,
+                "error-codes": ["invalid-input-response"],
+            },
+        )
+
+        with pytest.raises(ValidationError, match="verification failed"):
+            get_adapter().pre_authenticate(request)
 
     def test_get_reset_password_from_key_url(self, settings: SettingsWrapper) -> None:
         request = HttpRequest()

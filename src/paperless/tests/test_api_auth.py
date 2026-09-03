@@ -21,6 +21,17 @@ class TestApiAuthViews(TestCase):
 
         self.assertIs(api_match.func.view_class, account_match.func.view_class)
 
+    @override_settings(
+        HCAPTCHA_ENABLED=True,
+        HCAPTCHA_SITE_KEY="test-site-key",
+    )
+    def test_login_page_renders_hcaptcha(self):
+        response = self.client.get(reverse("account_login"))
+
+        self.assertContains(response, "https://js.hcaptcha.com/1/api.js")
+        self.assertContains(response, 'class="h-captcha')
+        self.assertContains(response, 'data-sitekey="test-site-key"')
+
     @override_settings(DISABLE_REGULAR_LOGIN=True)
     def test_api_auth_login_respects_disable_regular_login(self):
         username = f"testuser-{uuid.uuid4().hex}"

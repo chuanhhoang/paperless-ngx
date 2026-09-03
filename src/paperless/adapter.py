@@ -11,9 +11,11 @@ from django.contrib.auth.models import User
 from django.forms import ValidationError
 from django.http import HttpRequest
 from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 from rest_framework.authtoken.models import Token
 
 from documents.models import Document
+from paperless.hcaptcha import verify_hcaptcha
 from paperless.signals import handle_social_account_updated
 
 logger = logging.getLogger("paperless.auth")
@@ -45,7 +47,16 @@ class CustomAccountAdapter(DefaultAccountAdapter):
         if settings.DISABLE_REGULAR_LOGIN:
             raise ValidationError("Regular login is disabled")
 
-        return super().pre_authenticate(request, **credentials)
+        super().pre_authenticate(request, **credentials)
+
+        if settings.HCAPTCHA_ENABLED:
+            token = request.POST.get("h-captcha-response", "")
+            if not token:
+                raise ValidationError(_("Please complete the hCaptcha challenge."))
+            if not verify_hcaptcha(request, token):
+                raise ValidationError(
+                    _("hCaptcha verification failed. Please try again."),
+                )
 
     def is_safe_url(self, url):
         """
