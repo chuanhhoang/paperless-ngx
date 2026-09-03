@@ -738,6 +738,15 @@ This is for use with self-signed certificates against local IMAP servers.
 
     Defaults to None
 
+#### [`PAPERLESS_ACCOUNT_EMAIL_REQUIRED=<bool>`](#PAPERLESS_ACCOUNT_EMAIL_REQUIRED) {#PAPERLESS_ACCOUNT_EMAIL_REQUIRED}
+
+: Require an email address when registering a username/password account. This
+validates that an address is present and well formed; it does not verify that
+the registrant owns the address. Configure email delivery and
+`PAPERLESS_ACCOUNT_EMAIL_VERIFICATION` to require ownership verification.
+
+    Defaults to False
+
 #### [`PAPERLESS_SOCIALACCOUNT_PROVIDERS=<json>`](#PAPERLESS_SOCIALACCOUNT_PROVIDERS) {#PAPERLESS_SOCIALACCOUNT_PROVIDERS}
 
 : This variable is used to setup login and signup via social account providers which are compatible with django-allauth.

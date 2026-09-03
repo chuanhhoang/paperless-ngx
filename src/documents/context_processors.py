@@ -26,6 +26,7 @@ def settings(request):
         "HCAPTCHA_ENABLED": django_settings.HCAPTCHA_ENABLED,
         "HCAPTCHA_SITE_KEY": django_settings.HCAPTCHA_SITE_KEY,
         "ACCOUNT_ALLOW_SIGNUPS": django_settings.ACCOUNT_ALLOW_SIGNUPS,
+        "ACCOUNT_SIGNUP_EMAIL_REQUIRED": django_settings.ACCOUNT_SIGNUP_EMAIL_REQUIRED,
         "domain": getattr(django_settings, "PAPERLESS_URL", request.get_host()),
         "APP_TITLE": app_title,
         "APP_LOGO": app_logo,

@@ -49,6 +49,37 @@ class TestApiAuthViews(TestCase):
 
     @override_settings(
         ACCOUNT_ALLOW_SIGNUPS=True,
+        ACCOUNT_SIGNUP_EMAIL_REQUIRED=True,
+        ACCOUNT_SIGNUP_FIELDS=["email*", "username*", "password1*", "password2*"],
+        HCAPTCHA_ENABLED=True,
+        HCAPTCHA_SITE_KEY="test-site-key",
+    )
+    @patch("paperless.account_views.verify_hcaptcha")
+    def test_signup_requires_email_before_hcaptcha(self, verify_mock):
+        username = f"signup-{uuid.uuid4().hex}"
+
+        page = self.client.get(reverse("account_signup"))
+        self.assertContains(page, 'name="email"')
+        self.assertContains(page, "required")
+        self.assertNotContains(page, "Email (optional)")
+
+        response = self.client.post(
+            reverse("account_signup"),
+            data={
+                "username": username,
+                "email": "",
+                "password1": "a-secure-test-password-123",
+                "password2": "a-secure-test-password-123",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertContains(response, "This field is required")
+        self.assertFalse(User.objects.filter(username=username).exists())
+        verify_mock.assert_not_called()
+
+    @override_settings(
+        ACCOUNT_ALLOW_SIGNUPS=True,
         HCAPTCHA_ENABLED=True,
         HCAPTCHA_SITE_KEY="test-site-key",
     )

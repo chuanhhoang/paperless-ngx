@@ -20,7 +20,11 @@
 			</p>
 		{% endif %}
     {% translate "Username" as i18n_username %}
-    {% translate "Email (optional)" as i18n_email %}
+    {% if ACCOUNT_SIGNUP_EMAIL_REQUIRED %}
+        {% translate "Email" as i18n_email %}
+    {% else %}
+        {% translate "Email (optional)" as i18n_email %}
+    {% endif %}
     {% translate "Password" as i18n_password1 %}
     {% translate "Password (again)" as i18n_password2 %}
     <div class="form-floating form-stacked-top">
@@ -28,7 +32,7 @@
         <label for="inputUsername">{{ i18n_username|force_escape }}</label>
     </div>
     <div class="form-floating form-stacked-middle">
-        <input type="email" name="email" id="inputEmail" placeholder="{{ i18n_email|force_escape }}" class="form-control">
+        <input type="email" name="email" id="inputEmail" placeholder="{{ i18n_email|force_escape }}" class="form-control" {% if ACCOUNT_SIGNUP_EMAIL_REQUIRED %}required{% endif %}>
         <label for="inputEmail">{{ i18n_email|force_escape }}</label>
     </div>
     <div class="form-floating form-stacked-middle">

@@ -326,6 +326,15 @@ ACCOUNT_DEFAULT_HTTP_PROTOCOL = os.getenv(
 ACCOUNT_ADAPTER = "paperless.adapter.CustomAccountAdapter"
 ACCOUNT_ALLOW_SIGNUPS = get_bool_from_env("PAPERLESS_ACCOUNT_ALLOW_SIGNUPS")
 ACCOUNT_DEFAULT_GROUPS = get_list_from_env("PAPERLESS_ACCOUNT_DEFAULT_GROUPS")
+ACCOUNT_SIGNUP_EMAIL_REQUIRED = get_bool_from_env(
+    "PAPERLESS_ACCOUNT_EMAIL_REQUIRED",
+)
+ACCOUNT_SIGNUP_FIELDS = [
+    "email*" if ACCOUNT_SIGNUP_EMAIL_REQUIRED else "email",
+    "username*",
+    "password1*",
+    "password2*",
+]
 
 SOCIALACCOUNT_ADAPTER = "paperless.adapter.CustomSocialAccountAdapter"
 SOCIALACCOUNT_ALLOW_SIGNUPS = get_bool_from_env(
