@@ -10,6 +10,7 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.core.cache import caches
 from django.db import connection
 from django.test import TestCase
 from django.test import override_settings
@@ -235,7 +236,7 @@ class TestViews(DirectoriesMixin, TestCase):
         # Expired
         sl1.expiration = timezone.now() - timedelta(days=1)
         sl1.save()
-        cache.clear()
+        caches["sitemaps"].clear()
 
         for suffix in ("", "/document", "/download", "/thumbnail"):
             response = self.client.get(f"/share/{sl1.slug}{suffix}", follow=True)

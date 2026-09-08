@@ -4915,7 +4915,7 @@ SHARE_LINK_SITEMAP_SHARD_SIZE = 25000
 
 
 @method_decorator(cache_control(public=True, max_age=3600), name="dispatch")
-@method_decorator(cache_page(3600), name="dispatch")
+@method_decorator(cache_page(3600, cache="sitemaps"), name="dispatch")
 class SharedLinkSitemapView(View):
     def get(self, request):
         newest_link_pk = (
@@ -4945,7 +4945,7 @@ class SharedLinkSitemapView(View):
 
 
 @method_decorator(cache_control(public=True, max_age=86400), name="dispatch")
-@method_decorator(cache_page(86400), name="dispatch")
+@method_decorator(cache_page(86400, cache="sitemaps"), name="dispatch")
 class SharedLinkSitemapShardView(View):
     def get(self, request, shard):
         first_pk = shard * SHARE_LINK_SITEMAP_SHARD_SIZE + 1

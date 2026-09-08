@@ -817,6 +817,13 @@ def _parse_caches():
             "LOCATION": cachalot_settings["CACHALOT_REDIS_URL"],
             "KEY_PREFIX": _REDIS_KEY_PREFIX,
         },
+        "sitemaps": {
+            "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+            "LOCATION": DATA_DIR / "sitemap-cache",
+            "OPTIONS": {
+                "MAX_ENTRIES": 50000,
+            },
+        },
     }
 
 
