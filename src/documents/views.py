@@ -4759,6 +4759,13 @@ def share_text(value: str, max_length: int) -> str:
     return f"{text[: max_length - 1].rstrip()}…"
 
 
+def absolute_public_url(request: HttpRequest, path: str) -> str:
+    public_base_url = getattr(settings, "PAPERLESS_URL", "")
+    if public_base_url:
+        return f"{public_base_url.rstrip('/')}/{path.lstrip('/')}"
+    return request.build_absolute_uri(path)
+
+
 @method_decorator(cache_control(private=True, no_store=True), name="dispatch")
 class SharedLinkFileView(View):
     disposition = "inline"
@@ -4805,12 +4812,14 @@ class SharedLinkView(View):
         if redirect is not None:
             return redirect
         if share_link is not None:
-            canonical_url = request.build_absolute_uri(
+            canonical_url = absolute_public_url(
+                request,
                 reverse("shared-link", kwargs={"slug": share_link.slug}),
             )
             thumbnail_url = None
             if share_link.document.thumbnail_path.is_file():
-                thumbnail_url = request.build_absolute_uri(
+                thumbnail_url = absolute_public_url(
+                    request,
                     reverse(
                         "shared-link-thumbnail",
                         kwargs={"slug": share_link.slug},
@@ -4920,7 +4929,8 @@ class SharedLinkSitemapView(View):
         )
         entries = [
             {
-                "location": request.build_absolute_uri(
+                "location": absolute_public_url(
+                    request,
                     reverse("shared-link", kwargs={"slug": link.slug}),
                 ),
                 "last_modified": link.document.modified.isoformat(),
@@ -4939,7 +4949,7 @@ class SharedLinkSitemapView(View):
 @method_decorator(cache_control(public=True, max_age=3600), name="dispatch")
 class RobotsView(View):
     def get(self, request):
-        sitemap_url = request.build_absolute_uri(reverse("shared-link-sitemap"))
+        sitemap_url = absolute_public_url(request, reverse("shared-link-sitemap"))
         return HttpResponse(
             f"User-agent: *\nSitemap: {sitemap_url}\n",
             content_type="text/plain",

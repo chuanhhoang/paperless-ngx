@@ -109,6 +109,7 @@ class TestViews(DirectoriesMixin, TestCase):
             f"/paperless{config.app_logo}",
         )
 
+    @override_settings(PAPERLESS_URL="https://paperless.example")
     def test_share_link_views(self) -> None:
         """
         GIVEN:
@@ -167,7 +168,7 @@ class TestViews(DirectoriesMixin, TestCase):
         self.assertContains(response, f"/share/{sl1.slug}/thumbnail")
         self.assertContains(
             response,
-            f'<link rel="canonical" href="http://testserver/share/{sl1.slug}">',
+            f'<link rel="canonical" href="https://paperless.example/share/{sl1.slug}">',
             html=True,
         )
         self.assertContains(
@@ -191,11 +192,17 @@ class TestViews(DirectoriesMixin, TestCase):
         response = self.client.get("/sitemap.xml")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response["Content-Type"], "application/xml")
-        self.assertContains(response, f"http://testserver/share/{sl1.slug}")
+        self.assertContains(
+            response,
+            f"https://paperless.example/share/{sl1.slug}",
+        )
 
         response = self.client.get("/robots.txt")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertContains(response, "Sitemap: http://testserver/sitemap.xml")
+        self.assertContains(
+            response,
+            "Sitemap: https://paperless.example/sitemap.xml",
+        )
 
         response = self.client.get(f"/share/{sl1.slug}/document")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
