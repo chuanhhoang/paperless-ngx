@@ -359,6 +359,7 @@ or using [email](#workflow-action-email) or [webhook](#workflow-action-webhook) 
 - After a link expires or is deleted users will be redirected to the regular paperless-ngx login.
 - From the document detail screen you can create a share link for that single document.
 - From the bulk editor you can create a **share link bundle** for any selection. Paperless-ngx prepares a ZIP archive in the background and exposes a single share link. You can revisit the "Manage share link bundles" dialog to monitor progress, retry failed bundles, or delete links.
+- Active single-document share links are listed in `/sitemap.xml`, advertised through `/robots.txt`, and include document metadata and a searchable text preview to help search engines discover and understand public documents. Expired and deleted links are removed automatically.
 
 !!! tip
 

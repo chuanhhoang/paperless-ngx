@@ -34,11 +34,14 @@ from documents.views import PostDocumentView
 from documents.views import RemoteVersionView
 from documents.views import RemovePasswordDocumentsView
 from documents.views import ReprocessDocumentsView
+from documents.views import RobotsView
 from documents.views import RotateDocumentsView
 from documents.views import SavedViewViewSet
 from documents.views import SearchAutoCompleteView
 from documents.views import SelectionDataView
 from documents.views import SharedLinkFileView
+from documents.views import SharedLinkSitemapView
+from documents.views import SharedLinkThumbnailView
 from documents.views import SharedLinkView
 from documents.views import ShareLinkBundleViewSet
 from documents.views import ShareLinkViewSet
@@ -328,10 +331,17 @@ urlpatterns = [
         name="shared-link-download",
     ),
     re_path(
+        r"^share/(?P<slug>\w+)/thumbnail/?$",
+        SharedLinkThumbnailView.as_view(),
+        name="shared-link-thumbnail",
+    ),
+    re_path(
         r"^share/(?P<slug>\w+)/?$",
         SharedLinkView.as_view(),
         name="shared-link",
     ),
+    path("sitemap.xml", SharedLinkSitemapView.as_view(), name="shared-link-sitemap"),
+    path("robots.txt", RobotsView.as_view(), name="robots"),
     re_path(r"^favicon.ico$", FaviconView.as_view(), name="favicon"),
     re_path(r"admin/", admin.site.urls),
     re_path(

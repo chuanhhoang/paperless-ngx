@@ -61,8 +61,11 @@ from django.http import HttpResponseServerError
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
+from django.utils.html import json_script
+from django.utils.safestring import mark_safe
 from django.utils.timezone import make_aware
 from django.utils.translation import get_language
 from django.utils.translation import gettext_lazy as _
@@ -4733,6 +4736,29 @@ def get_active_share_link(slug: str) -> tuple[ShareLink | None, HttpResponse | N
     return share_link, None
 
 
+def share_link_uses_archive(share_link: ShareLink) -> bool:
+    return (
+        share_link.file_version == ShareLink.FileVersion.ARCHIVE
+        and share_link.document.has_archive_version
+    )
+
+
+def share_link_file_exists(share_link: ShareLink) -> bool:
+    file_path = (
+        share_link.document.archive_path
+        if share_link_uses_archive(share_link)
+        else share_link.document.source_path
+    )
+    return file_path is not None and file_path.is_file()
+
+
+def share_text(value: str, max_length: int) -> str:
+    text = " ".join(value.split())
+    if len(text) <= max_length:
+        return text
+    return f"{text[: max_length - 1].rstrip()}…"
+
+
 @method_decorator(cache_control(private=True, no_store=True), name="dispatch")
 class SharedLinkFileView(View):
     disposition = "inline"
@@ -4746,10 +4772,27 @@ class SharedLinkFileView(View):
 
         return serve_file(
             doc=share_link.document,
-            use_archive=share_link.file_version == ShareLink.FileVersion.ARCHIVE
-            and share_link.document.has_archive_version,
+            use_archive=share_link_uses_archive(share_link),
             disposition=self.disposition,
         )
+
+
+@method_decorator(cache_control(private=True, no_store=True), name="dispatch")
+class SharedLinkThumbnailView(View):
+    def get(self, request, slug):
+        share_link, redirect = get_active_share_link(slug)
+        if redirect is not None:
+            return redirect
+        if share_link is None:
+            return HttpResponseRedirect("/accounts/login/?sharelink_notfound=1")
+
+        try:
+            return FileResponse(
+                share_link.document.thumbnail_file,
+                content_type="image/webp",
+            )
+        except FileNotFoundError:
+            raise Http404
 
 
 @method_decorator(cache_control(private=True, no_store=True), name="dispatch")
@@ -4762,12 +4805,57 @@ class SharedLinkView(View):
         if redirect is not None:
             return redirect
         if share_link is not None:
+            canonical_url = request.build_absolute_uri(
+                reverse("shared-link", kwargs={"slug": share_link.slug}),
+            )
+            thumbnail_url = None
+            if share_link.document.thumbnail_path.is_file():
+                thumbnail_url = request.build_absolute_uri(
+                    reverse(
+                        "shared-link-thumbnail",
+                        kwargs={"slug": share_link.slug},
+                    ),
+                )
+            description = share_text(
+                share_link.document.content or share_link.document.title,
+                300,
+            )
+            structured_data = {
+                "@context": "https://schema.org",
+                "@type": "DigitalDocument",
+                "name": share_link.document.title,
+                "description": description,
+                "url": canonical_url,
+                "encodingFormat": (
+                    "application/pdf"
+                    if share_link_uses_archive(share_link)
+                    else share_link.document.mime_type
+                ),
+                "dateCreated": share_link.document.added.isoformat(),
+                "dateModified": share_link.document.modified.isoformat(),
+            }
+            if thumbnail_url is not None:
+                structured_data["thumbnailUrl"] = thumbnail_url
+
             return render(
                 request,
                 "paperless-ngx/share.html",
                 {
+                    "canonical_url": canonical_url,
+                    "description": description,
                     "document": share_link.document,
+                    "document_excerpt": share_text(
+                        share_link.document.content,
+                        2000,
+                    ),
                     "share_link": share_link,
+                    "structured_data": mark_safe(
+                        str(json_script(structured_data)).replace(
+                            'type="application/json"',
+                            'type="application/ld+json"',
+                        ),
+                    ),
+                    "thumbnail_url": thumbnail_url,
                 },
             )
 
@@ -4820,6 +4908,42 @@ class SharedLinkView(View):
             f"filename*=utf-8''{filename_encoded}"
         )
         return response
+
+
+@method_decorator(cache_control(public=True, max_age=3600), name="dispatch")
+class SharedLinkSitemapView(View):
+    def get(self, request):
+        links = (
+            ShareLink.objects.select_related("document")
+            .filter(Q(expiration__isnull=True) | Q(expiration__gt=timezone.now()))
+            .order_by("pk")[:50000]
+        )
+        entries = [
+            {
+                "location": request.build_absolute_uri(
+                    reverse("shared-link", kwargs={"slug": link.slug}),
+                ),
+                "last_modified": link.document.modified.isoformat(),
+            }
+            for link in links
+            if share_link_file_exists(link)
+        ]
+        return render(
+            request,
+            "paperless-ngx/share-sitemap.xml",
+            {"entries": entries},
+            content_type="application/xml",
+        )
+
+
+@method_decorator(cache_control(public=True, max_age=3600), name="dispatch")
+class RobotsView(View):
+    def get(self, request):
+        sitemap_url = request.build_absolute_uri(reverse("shared-link-sitemap"))
+        return HttpResponse(
+            f"User-agent: *\nSitemap: {sitemap_url}\n",
+            content_type="text/plain",
+        )
 
 
 def serve_file(

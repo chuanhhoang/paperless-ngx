@@ -6,6 +6,15 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="referrer" content="same-origin">
+        <meta name="description" content="{{ description }}">
+        <link rel="canonical" href="{{ canonical_url }}">
+        <meta property="og:type" content="article">
+        <meta property="og:title" content="{{ document.title }}">
+        <meta property="og:description" content="{{ description }}">
+        <meta property="og:url" content="{{ canonical_url }}">
+        {% if thumbnail_url %}<meta property="og:image" content="{{ thumbnail_url }}">{% endif %}
+        <meta name="twitter:card" content="{% if thumbnail_url %}summary_large_image{% else %}summary{% endif %}">
+        {{ structured_data }}
         <title>{{ document.title }}{% if APP_TITLE %} · {{ APP_TITLE }}{% endif %}</title>
         <link href="{% static 'share.css' %}" rel="stylesheet">
     </head>
@@ -42,5 +51,12 @@
                 </p>
             </noscript>
         </main>
+        {% if document_excerpt %}
+            <section class="document-content" aria-labelledby="document-content-heading">
+                <span class="document-content-label">{% translate "Document preview" %}</span>
+                <h2 id="document-content-heading">{{ document.title }}</h2>
+                <p>{{ document_excerpt }}</p>
+            </section>
+        {% endif %}
     </body>
 </html>

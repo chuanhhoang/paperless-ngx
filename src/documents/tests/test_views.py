@@ -132,9 +132,11 @@ class TestViews(DirectoriesMixin, TestCase):
 
         doc = Document.objects.create(
             title="none",
+            content="Fuse ratings and circuit diagram.\nSecond line.",
             filename=Path(filename).name,
             mime_type="application/pdf",
         )
+        doc.thumbnail_path.write_bytes(b"webp-thumbnail")
 
         sharelink_permissions = Permission.objects.filter(
             codename__contains="sharelink",
@@ -162,9 +164,38 @@ class TestViews(DirectoriesMixin, TestCase):
         self.assertContains(response, doc.title)
         self.assertContains(response, f"/share/{sl1.slug}/document")
         self.assertContains(response, f"/share/{sl1.slug}/download")
+        self.assertContains(response, f"/share/{sl1.slug}/thumbnail")
+        self.assertContains(
+            response,
+            f'<link rel="canonical" href="http://testserver/share/{sl1.slug}">',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<meta name="description" '
+            'content="Fuse ratings and circuit diagram. Second line.">',
+            html=True,
+        )
+        self.assertContains(response, 'type="application/ld+json"')
+        self.assertContains(response, '"@type": "DigitalDocument"')
+        self.assertContains(response, "Document preview")
         self.assertNotContains(response, "noindex")
         self.assertNotContains(response, "nofollow")
         self.assertIn("no-store", response["Cache-Control"])
+
+        response = self.client.get(f"/share/{sl1.slug}/thumbnail")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(read_streaming_response(response), b"webp-thumbnail")
+        self.assertEqual(response["Content-Type"], "image/webp")
+
+        response = self.client.get("/sitemap.xml")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response["Content-Type"], "application/xml")
+        self.assertContains(response, f"http://testserver/share/{sl1.slug}")
+
+        response = self.client.get("/robots.txt")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertContains(response, "Sitemap: http://testserver/sitemap.xml")
 
         response = self.client.get(f"/share/{sl1.slug}/document")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -178,7 +209,7 @@ class TestViews(DirectoriesMixin, TestCase):
         self.assertTrue(response["Content-Disposition"].startswith("attachment;"))
 
         # Invalid
-        for suffix in ("", "/document", "/download"):
+        for suffix in ("", "/document", "/download", "/thumbnail"):
             response = self.client.get(f"/share/123notaslug{suffix}", follow=True)
             response.render()
             self.assertEqual(response.request["PATH_INFO"], "/accounts/login/")
@@ -188,11 +219,14 @@ class TestViews(DirectoriesMixin, TestCase):
         sl1.expiration = timezone.now() - timedelta(days=1)
         sl1.save()
 
-        for suffix in ("", "/document", "/download"):
+        for suffix in ("", "/document", "/download", "/thumbnail"):
             response = self.client.get(f"/share/{sl1.slug}{suffix}", follow=True)
             response.render()
             self.assertEqual(response.request["PATH_INFO"], "/accounts/login/")
             self.assertContains(response, b"Share link has expired")
+
+        response = self.client.get("/sitemap.xml")
+        self.assertNotContains(response, sl1.slug)
 
     def test_share_link_archive_falls_back_to_original(self) -> None:
         """
