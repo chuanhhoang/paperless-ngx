@@ -125,6 +125,7 @@ class TestViews(DirectoriesMixin, TestCase):
             - User is redirected to login with error
         """
 
+        caches["sitemaps"].clear()
         _, filename = tempfile.mkstemp(dir=self.dirs.originals_dir)
 
         content = b"This is a test"

@@ -19,7 +19,8 @@ body {
 
 body {
     display: grid;
-    grid-template-rows: 72px minmax(0, 1fr);
+    grid-template-rows: 72px calc(100vh - 72px) auto;
+    grid-template-rows: 72px calc(100dvh - 72px) auto;
     overflow-x: hidden;
     overflow-y: auto;
     background: #e9ebef;
@@ -188,7 +189,8 @@ body {
 
 @media (max-width: 680px) {
     body {
-        grid-template-rows: 60px minmax(0, 1fr);
+        grid-template-rows: 60px calc(100vh - 60px) auto;
+        grid-template-rows: 60px calc(100dvh - 60px) auto;
     }
 
     .share-header {
