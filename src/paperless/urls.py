@@ -40,6 +40,7 @@ from documents.views import SavedViewViewSet
 from documents.views import SearchAutoCompleteView
 from documents.views import SelectionDataView
 from documents.views import SharedLinkFileView
+from documents.views import SharedLinkSitemapShardView
 from documents.views import SharedLinkSitemapView
 from documents.views import SharedLinkThumbnailView
 from documents.views import SharedLinkView
@@ -341,6 +342,11 @@ urlpatterns = [
         name="shared-link",
     ),
     path("sitemap.xml", SharedLinkSitemapView.as_view(), name="shared-link-sitemap"),
+    path(
+        "sitemaps/shares-<int:shard>.xml",
+        SharedLinkSitemapShardView.as_view(),
+        name="shared-link-sitemap-shard",
+    ),
     path("robots.txt", RobotsView.as_view(), name="robots"),
     re_path(r"^favicon.ico$", FaviconView.as_view(), name="favicon"),
     re_path(r"admin/", admin.site.urls),

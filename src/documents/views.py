@@ -4743,15 +4743,6 @@ def share_link_uses_archive(share_link: ShareLink) -> bool:
     )
 
 
-def share_link_file_exists(share_link: ShareLink) -> bool:
-    file_path = (
-        share_link.document.archive_path
-        if share_link_uses_archive(share_link)
-        else share_link.document.source_path
-    )
-    return file_path is not None and file_path.is_file()
-
-
 def share_text(value: str, max_length: int) -> str:
     text = " ".join(value.split())
     if len(text) <= max_length:
@@ -4919,25 +4910,59 @@ class SharedLinkView(View):
         return response
 
 
+SHARE_LINK_SITEMAP_SHARD_SIZE = 25000
+
+
 @method_decorator(cache_control(public=True, max_age=3600), name="dispatch")
 class SharedLinkSitemapView(View):
     def get(self, request):
-        links = (
-            ShareLink.objects.select_related("document")
-            .filter(Q(expiration__isnull=True) | Q(expiration__gt=timezone.now()))
-            .order_by("pk")[:50000]
+        newest_link_pk = (
+            ShareLink.objects.order_by("-pk").values_list("pk", flat=True).first() or 0
         )
+        shard_count = (
+            newest_link_pk + SHARE_LINK_SITEMAP_SHARD_SIZE - 1
+        ) // SHARE_LINK_SITEMAP_SHARD_SIZE
         entries = [
             {
                 "location": absolute_public_url(
                     request,
-                    reverse("shared-link", kwargs={"slug": link.slug}),
+                    reverse(
+                        "shared-link-sitemap-shard",
+                        kwargs={"shard": shard},
+                    ),
                 ),
-                "last_modified": link.document.modified.isoformat(),
             }
-            for link in links
-            if share_link_file_exists(link)
+            for shard in range(shard_count)
         ]
+        return render(
+            request,
+            "paperless-ngx/share-sitemap-index.xml",
+            {"entries": entries},
+            content_type="application/xml",
+        )
+
+
+@method_decorator(cache_control(public=True, max_age=86400), name="dispatch")
+class SharedLinkSitemapShardView(View):
+    def get(self, request, shard):
+        first_pk = shard * SHARE_LINK_SITEMAP_SHARD_SIZE + 1
+        last_pk = first_pk + SHARE_LINK_SITEMAP_SHARD_SIZE
+        links = (
+            ShareLink.objects.filter(pk__gte=first_pk, pk__lt=last_pk)
+            .filter(Q(expiration__isnull=True) | Q(expiration__gt=timezone.now()))
+            .order_by("pk")
+            .values_list("slug", "document__modified")
+        )
+        entries = (
+            {
+                "location": absolute_public_url(
+                    request,
+                    reverse("shared-link", kwargs={"slug": slug}),
+                ),
+                "last_modified": modified.isoformat(),
+            }
+            for slug, modified in links.iterator(chunk_size=2000)
+        )
         return render(
             request,
             "paperless-ngx/share-sitemap.xml",

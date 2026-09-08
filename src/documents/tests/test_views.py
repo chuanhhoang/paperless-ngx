@@ -194,8 +194,18 @@ class TestViews(DirectoriesMixin, TestCase):
         self.assertEqual(response["Content-Type"], "application/xml")
         self.assertContains(
             response,
+            "https://paperless.example/sitemaps/shares-0.xml",
+        )
+        self.assertNotContains(response, sl1.slug)
+
+        response = self.client.get("/sitemaps/shares-0.xml")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response["Content-Type"], "application/xml")
+        self.assertContains(
+            response,
             f"https://paperless.example/share/{sl1.slug}",
         )
+        self.assertIn("max-age=86400", response["Cache-Control"])
 
         response = self.client.get("/robots.txt")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -232,7 +242,7 @@ class TestViews(DirectoriesMixin, TestCase):
             self.assertEqual(response.request["PATH_INFO"], "/accounts/login/")
             self.assertContains(response, b"Share link has expired")
 
-        response = self.client.get("/sitemap.xml")
+        response = self.client.get("/sitemaps/shares-0.xml")
         self.assertNotContains(response, sl1.slug)
 
     def test_share_link_archive_falls_back_to_original(self) -> None:
