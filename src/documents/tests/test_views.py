@@ -235,6 +235,7 @@ class TestViews(DirectoriesMixin, TestCase):
         # Expired
         sl1.expiration = timezone.now() - timedelta(days=1)
         sl1.save()
+        cache.clear()
 
         for suffix in ("", "/document", "/download", "/thumbnail"):
             response = self.client.get(f"/share/{sl1.slug}{suffix}", follow=True)
