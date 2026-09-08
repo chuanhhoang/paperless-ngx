@@ -162,6 +162,8 @@ class TestViews(DirectoriesMixin, TestCase):
         self.assertContains(response, doc.title)
         self.assertContains(response, f"/share/{sl1.slug}/document")
         self.assertContains(response, f"/share/{sl1.slug}/download")
+        self.assertNotContains(response, "noindex")
+        self.assertNotContains(response, "nofollow")
         self.assertIn("no-store", response["Cache-Control"])
 
         response = self.client.get(f"/share/{sl1.slug}/document")
