@@ -16,7 +16,7 @@
         <meta name="twitter:card" content="{% if thumbnail_url %}summary_large_image{% else %}summary{% endif %}">
         {{ structured_data }}
         <title>{{ document.title }}{% if APP_TITLE %} · {{ APP_TITLE }}{% endif %}</title>
-        <link href="{% static 'share.css' %}" rel="stylesheet">
+        <link href="{% static 'share.css' %}?v=2" rel="stylesheet">
     </head>
     <body>
         <header class="share-header">
