@@ -38,6 +38,7 @@ from documents.views import RotateDocumentsView
 from documents.views import SavedViewViewSet
 from documents.views import SearchAutoCompleteView
 from documents.views import SelectionDataView
+from documents.views import SharedLinkFileView
 from documents.views import SharedLinkView
 from documents.views import ShareLinkBundleViewSet
 from documents.views import ShareLinkViewSet
@@ -316,7 +317,21 @@ urlpatterns = [
             ],
         ),
     ),
-    re_path(r"^share/(?P<slug>\w+)/?$", SharedLinkView.as_view()),
+    re_path(
+        r"^share/(?P<slug>\w+)/document/?$",
+        SharedLinkFileView.as_view(),
+        name="shared-link-document",
+    ),
+    re_path(
+        r"^share/(?P<slug>\w+)/download/?$",
+        SharedLinkFileView.as_view(disposition="attachment"),
+        name="shared-link-download",
+    ),
+    re_path(
+        r"^share/(?P<slug>\w+)/?$",
+        SharedLinkView.as_view(),
+        name="shared-link",
+    ),
     re_path(r"^favicon.ico$", FaviconView.as_view(), name="favicon"),
     re_path(r"admin/", admin.site.urls),
     re_path(

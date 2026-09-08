@@ -1,0 +1,47 @@
+<!doctype html>
+{% load static i18n %}
+
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="robots" content="noindex,nofollow">
+        <meta name="referrer" content="same-origin">
+        <title>{{ document.title }}{% if APP_TITLE %} · {{ APP_TITLE }}{% endif %}</title>
+        <link href="{% static 'share.css' %}" rel="stylesheet">
+    </head>
+    <body>
+        <header class="share-header">
+            <a class="brand" href="{% url 'shared-link' slug=share_link.slug %}" aria-label="{% translate 'Shared document' %}">
+                {% if APP_LOGO %}
+                    <img src="{{ APP_LOGO }}" alt="">
+                {% else %}
+                    <span class="brand-mark" aria-hidden="true">P</span>
+                {% endif %}
+                <span class="brand-name">{% if APP_TITLE %}{{ APP_TITLE }}{% else %}Paperless-ngx{% endif %}</span>
+            </a>
+            <div class="document-heading">
+                <span class="document-label">{% translate "Shared document" %}</span>
+                <h1 title="{{ document.title }}">{{ document.title }}</h1>
+            </div>
+            <a class="download-button" href="{% url 'shared-link-download' slug=share_link.slug %}" download>
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18">
+                    <path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                </svg>
+                <span>{% translate "Download" %}</span>
+            </a>
+        </header>
+        <main class="viewer-shell">
+            <iframe
+                class="document-viewer"
+                src="{% url 'shared-link-document' slug=share_link.slug %}"
+                title="{% blocktranslate with title=document.title %}Preview of {{ title }}{% endblocktranslate %}"
+            ></iframe>
+            <noscript>
+                <p class="viewer-fallback">
+                    <a href="{% url 'shared-link-document' slug=share_link.slug %}">{% translate "Open document" %}</a>
+                </p>
+            </noscript>
+        </main>
+    </body>
+</html>

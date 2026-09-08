@@ -118,7 +118,7 @@ class TestViews(DirectoriesMixin, TestCase):
             - Invalid request for share link is made
             - Request for expired share link is made
         THEN:
-            - Document is returned without need for login
+            - Public viewer and document endpoints work without login
             - User is redirected to login with error
             - User is redirected to login with error
         """
@@ -158,22 +158,39 @@ class TestViews(DirectoriesMixin, TestCase):
         # Valid
         response = self.client.get(f"/share/{sl1.slug}")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTemplateUsed(response, "paperless-ngx/share.html")
+        self.assertContains(response, doc.title)
+        self.assertContains(response, f"/share/{sl1.slug}/document")
+        self.assertContains(response, f"/share/{sl1.slug}/download")
+        self.assertIn("no-store", response["Cache-Control"])
+
+        response = self.client.get(f"/share/{sl1.slug}/document")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(read_streaming_response(response), content)
+        self.assertTrue(response["Content-Disposition"].startswith("inline;"))
+        self.assertIn("no-store", response["Cache-Control"])
+
+        response = self.client.get(f"/share/{sl1.slug}/download")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(read_streaming_response(response), content)
+        self.assertTrue(response["Content-Disposition"].startswith("attachment;"))
 
         # Invalid
-        response = self.client.get("/share/123notaslug", follow=True)
-        response.render()
-        self.assertEqual(response.request["PATH_INFO"], "/accounts/login/")
-        self.assertContains(response, b"Share link was not found")
+        for suffix in ("", "/document", "/download"):
+            response = self.client.get(f"/share/123notaslug{suffix}", follow=True)
+            response.render()
+            self.assertEqual(response.request["PATH_INFO"], "/accounts/login/")
+            self.assertContains(response, b"Share link was not found")
 
         # Expired
         sl1.expiration = timezone.now() - timedelta(days=1)
         sl1.save()
 
-        response = self.client.get(f"/share/{sl1.slug}", follow=True)
-        response.render()
-        self.assertEqual(response.request["PATH_INFO"], "/accounts/login/")
-        self.assertContains(response, b"Share link has expired")
+        for suffix in ("", "/document", "/download"):
+            response = self.client.get(f"/share/{sl1.slug}{suffix}", follow=True)
+            response.render()
+            self.assertEqual(response.request["PATH_INFO"], "/accounts/login/")
+            self.assertContains(response, b"Share link has expired")
 
     def test_share_link_archive_falls_back_to_original(self) -> None:
         """
@@ -213,7 +230,7 @@ class TestViews(DirectoriesMixin, TestCase):
 
         self.client.logout()
 
-        response = self.client.get(f"/share/{share_link.slug}")
+        response = self.client.get(f"/share/{share_link.slug}/document")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(read_streaming_response(response), content)

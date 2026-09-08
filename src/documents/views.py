@@ -60,6 +60,7 @@ from django.http import HttpResponseRedirect
 from django.http import HttpResponseServerError
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
+from django.shortcuts import render
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.timezone import make_aware
@@ -4709,27 +4710,66 @@ class ShareLinkBundleViewSet(PassUserMixin, ModelViewSet[ShareLinkBundle]):
         return Response(serializer.data)
 
 
+def get_active_share_link(slug: str) -> tuple[ShareLink | None, HttpResponse | None]:
+    share_link = ShareLink.objects.select_related("document").filter(slug=slug).first()
+    if share_link is None:
+        return None, None
+
+    if share_link.expiration is not None and share_link.expiration < timezone.now():
+        return None, HttpResponseRedirect("/accounts/login/?sharelink_expired=1")
+
+    use_archive = (
+        share_link.file_version == ShareLink.FileVersion.ARCHIVE
+        and share_link.document.has_archive_version
+    )
+    file_path = (
+        share_link.document.archive_path
+        if use_archive
+        else share_link.document.source_path
+    )
+    if file_path is None or not file_path.is_file():
+        return None, HttpResponseRedirect("/accounts/login/?sharelink_notfound=1")
+
+    return share_link, None
+
+
+@method_decorator(cache_control(private=True, no_store=True), name="dispatch")
+class SharedLinkFileView(View):
+    disposition = "inline"
+
+    def get(self, request, slug):
+        share_link, redirect = get_active_share_link(slug)
+        if redirect is not None:
+            return redirect
+        if share_link is None:
+            return HttpResponseRedirect("/accounts/login/?sharelink_notfound=1")
+
+        return serve_file(
+            doc=share_link.document,
+            use_archive=share_link.file_version == ShareLink.FileVersion.ARCHIVE
+            and share_link.document.has_archive_version,
+            disposition=self.disposition,
+        )
+
+
+@method_decorator(cache_control(private=True, no_store=True), name="dispatch")
 class SharedLinkView(View):
     authentication_classes = []
     permission_classes = []
 
     def get(self, request, slug):
-        share_link = ShareLink.objects.filter(slug=slug).first()
+        share_link, redirect = get_active_share_link(slug)
+        if redirect is not None:
+            return redirect
         if share_link is not None:
-            if (
-                share_link.expiration is not None
-                and share_link.expiration < timezone.now()
-            ):
-                return HttpResponseRedirect("/accounts/login/?sharelink_expired=1")
-            try:
-                return serve_file(
-                    doc=share_link.document,
-                    use_archive=share_link.file_version == ShareLink.FileVersion.ARCHIVE
-                    and share_link.document.has_archive_version,
-                    disposition="inline",
-                )
-            except FileNotFoundError:
-                return HttpResponseRedirect("/accounts/login/?sharelink_notfound=1")
+            return render(
+                request,
+                "paperless-ngx/share.html",
+                {
+                    "document": share_link.document,
+                    "share_link": share_link,
+                },
+            )
 
         bundle = ShareLinkBundle.objects.filter(slug=slug).first()
         if bundle is None:
